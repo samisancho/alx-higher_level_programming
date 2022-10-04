@@ -1,235 +1,203 @@
 #!/usr/bin/python3
-"""
-This module contains the "Base" class
+"""Module base.
+Defines a Base class for other classes in the project.
 """
 
-import csv
 import json
-import turtle
+import os
+import csv
 
 
 class Base:
-    """A base class"""
+    """Class with:
+    Private class attribute: __nb_objects
+    """
+
     __nb_objects = 0
 
     def __init__(self, id=None):
-        """Initialize the base class"""
-        if id is None:
-            Base.__nb_objects += 1
-            self.id = self.__nb_objects
-        else:
+        """Initialization of a Base instance.
+        Args:
+            - id: id of the instance
+        """
+
+        if type(id) != int and id is not None:
+            raise TypeError("id must be an integer")
+        if id is not None:
             self.id = id
+        else:
+            Base.__nb_objects += 1
+            self.id = Base.__nb_objects
 
     @staticmethod
     def to_json_string(list_dictionaries):
-        """returns the JSON string representation of a list of dictionaries"""
-        if list_dictionaries is None:
-            list_dictionaries = []
-        return json.dumps(list_dictionaries)
+        """Returns a JSON representation of list_dictionaries.
+        Args:
+            - list_dictionaries: list of dicts
+        Returns: JSON representation of the list
+        """
 
-    @staticmethod
-    def from_json_string(json_string):
-        """returns the list of the JSON string representation json_string"""
-        if json_string is None or len(json_string) == 0:
-            return []
-        return json.loads(json_string)
+        if list_dictionaries is None or list_dictionaries == []:
+            return "[]"
+        if (type(list_dictionaries) != list or
+           not all(type(x) == dict for x in list_dictionaries)):
+            raise TypeError("list_dictionaries must be a list of dictionaries")
+        return json.dumps(list_dictionaries)
 
     @classmethod
     def save_to_file(cls, list_objs):
-        """writes the JSON string representation of list_objs to a file"""
+        """Writes the JSON string representation of
+        list_objs to a file.
+        Args:
+            - list_objs: list of instances who inherits of Base
+        """
+        """
+        if type(list_objs) != list and list_objs is not None:
+            raise TypeError("list_objs must be a list of instances")
+        if any(issubclass(type(x), Base) is False for x in list_objs):
+            raise TypeError("list_objs must be a list of instances")
+        """
+        if list_objs is None or list_objs == []:
+            jstr = "[]"
+        else:
+            jstr = cls.to_json_string([o.to_dictionary() for o in list_objs])
         filename = cls.__name__ + ".json"
-        lo = []
-        if list_objs is not None:
-            for i in list_objs:
-                lo.append(cls.to_dictionary(i))
         with open(filename, 'w') as f:
-            f.write(cls.to_json_string(lo))
+                f.write(jstr)
+
+    @staticmethod
+    def from_json_string(json_string):
+        """Returns the list of the JSON string representation json_string.
+        Args:
+            - json_string: string to convert to list
+        """
+
+        l = []
+        if json_string is not None and json_string != '':
+            if type(json_string) != str:
+                raise TypeError("json_string must be a string")
+            l = json.loads(json_string)
+        return l
 
     @classmethod
     def create(cls, **dictionary):
-        """returns an instance with all attributes already set"""
-        if cls.__name__ is "Rectangle":
+        """Returns an instance with all attributes already set.
+        Args:
+            - dictionary: used as **kwargs
+        Returns: instance created
+        """
+        if cls.__name__ == 'Rectangle':
             dummy = cls(1, 1)
-        elif cls.__name__ is "Square":
+        elif cls.__name__ == 'Square':
             dummy = cls(1)
         dummy.update(**dictionary)
         return dummy
 
     @classmethod
     def load_from_file(cls):
+        """Returns a list of instances."""
+
         filename = cls.__name__ + ".json"
         l = []
-        try:
+        list_dicts = []
+        if os.path.exists(filename):
             with open(filename, 'r') as f:
-                l = cls.from_json_string(f.read())
-            for i, e in enumerate(l):
-                l[i] = cls.create(**l[i])
-        except:
-            pass
+                s = f.read()
+                list_dicts = cls.from_json_string(s)
+                for d in list_dicts:
+                    l.append(cls.create(**d))
         return l
 
     @classmethod
     def save_to_file_csv(cls, list_objs):
-        """serializes a list of Rectangles/Squares in csv"""
+        """Serializes list_objs in CSV format
+        and saves it to a file.
+        Args:
+            - list_objs: list of instances
+        """
+
+        if (type(list_objs) != list and
+           list_objs is not None or
+           not all(isinstance(x, cls) for x in list_objs)):
+            raise TypeError("list_objs must be a list of instances")
+
         filename = cls.__name__ + ".csv"
-        with open(filename, 'w', newline='') as csvfile:
-            csv_writer = csv.writer(csvfile)
-            if cls.__name__ is "Rectangle":
-                for obj in list_objs:
-                    csv_writer.writerow([obj.id, obj.width, obj.height,
-                                         obj.x, obj.y])
-            elif cls.__name__ is "Square":
-                for obj in list_objs:
-                    csv_writer.writerow([obj.id, obj.size, obj.x, obj.y])
+        with open(filename, 'w') as f:
+            if list_objs is not None:
+                list_objs = [x.to_dictionary() for x in list_objs]
+                if cls.__name__ == 'Rectangle':
+                    fields = ['id', 'width', 'height', 'x', 'y']
+                elif cls.__name__ == 'Square':
+                    fields = ['id', 'size', 'x', 'y']
+                writer = csv.DictWriter(f, fieldnames=fields)
+                writer.writeheader()
+                writer.writerows(list_objs)
 
     @classmethod
     def load_from_file_csv(cls):
-        """deserializes a list of Rectangles/Squares in csv"""
+        """Deserializes CSV format from a file.
+        Returns: list of instances
+        """
+
         filename = cls.__name__ + ".csv"
         l = []
-        try:
-            with open(filename, 'r') as csvfile:
-                csv_reader = csv.reader(csvfile)
-                for args in csv_reader:
-                    if cls.__name__ is "Rectangle":
-                        dictionary = {"id": int(args[0]),
-                                      "width": int(args[1]),
-                                      "height": int(args[2]),
-                                      "x": int(args[3]),
-                                      "y": int(args[4])}
-                    elif cls.__name__ is "Square":
-                        dictionary = {"id": int(args[0]), "size": int(args[1]),
-                                      "x": int(args[2]), "y": int(args[3])}
-                    obj = cls.create(**dictionary)
-                    l.append(obj)
-        except:
-            pass
+        if os.path.exists(filename):
+            with open(filename, 'r') as f:
+                reader = csv.reader(f, delimiter=',')
+                if cls.__name__ == 'Rectangle':
+                    fields = ['id', 'width', 'height', 'x', 'y']
+                elif cls.__name__ == 'Square':
+                    fields = ['id', 'size', 'x', 'y']
+                for x, row in enumerate(reader):
+                    if x > 0:
+                        i = cls(1, 1)
+                        for j, e in enumerate(row):
+                            if e:
+                                setattr(i, fields[j], int(e))
+                        l.append(i)
         return l
 
     @staticmethod
     def draw(list_rectangles, list_squares):
-        """opens a window and draws all the Rectangles and Squares"""
-        screen_width = 620
-        padding = 10
-        row_width = padding
-        row_height = 0
-        screen_height = padding
-        color_list = ['red', 'orange', 'yellow', 'green', 'blue', 'indigo',
-                      'violet']
-        color_size = len(color_list)
-        color_index = 0
-        for rect in list_rectangles:
-            potential_width = row_width + rect.width + rect.x + padding
-            if (row_width == padding or potential_width < screen_width):
-                row_width += rect.width + rect.x + padding
-                if (row_height < rect.height + rect.y):
-                    row_height = rect.height + rect.y
-            else:
-                screen_height += row_height + padding
-                row_width = rect.width + rect.x + padding * 2
-                row_height = rect.height + rect.y
+        """Opens a Turtle window and draws
+        rectangles and squares.
+        Args:
+            - list_rectangles: list of Rectangle instances
+            - list_squares: list of Square instances
+        """
 
-        for square in list_squares:
-            potential_width = row_width + square.size + square.x + padding
-            if (row_width == padding or potential_width < screen_width):
-                row_width += square.size + square.x + padding
-                if (row_height < square.size + square.y):
-                    row_height = square.size + square.y
-            else:
-                screen_height += row_height + padding
-                row_width = square.size + square.x + padding * 2
-                row_height = square.size + square.y
-        turtle.screensize(canvwidth=screen_width, canvheight=screen_height)
-        turtle.pu()
-        turtle.left(180)
-        turtle.forward(screen_width/2 - padding)
-        turtle.right(90)
-        turtle.forward(screen_height/2 - padding)
-        turtle.right(90)
-        row_width = padding
-        row_height = 0
-        for rect in list_rectangles:
-            potential_width = row_width + rect.width + rect.x + padding
-            if (row_width == padding or potential_width < screen_width):
-                row_width += rect.width + rect.x + padding
-                if (row_height < rect.height + rect.y):
-                    row_height = rect.height + rect.y
-            else:
-                turtle.pu()
-                turtle.left(180)
-                turtle.forward(row_width - padding)
-                turtle.left(90)
-                turtle.forward(row_height + padding)
-                turtle.left(90)
-                row_width = rect.width + rect.x + padding * 2
-                row_height = rect.height + rect.y
-            turtle.pd()
-            turtle.pencolor(color_list[color_index % color_size])
-            for _ in range(4):
-                turtle.forward(5)
-                turtle.back(5)
-                turtle.right(90)
-            turtle.pu()
-            turtle.forward(rect.x)
-            turtle.right(90)
-            turtle.forward(rect.y)
-            turtle.left(90)
-            turtle.pd()
-            turtle.pencolor('black')
-            turtle.fillcolor(color_list[color_index % color_size])
-            turtle.begin_fill()
-            for _ in range(2):
-                turtle.forward(rect.width)
-                turtle.right(90)
-                turtle.forward(rect.height)
-                turtle.right(90)
-            turtle.end_fill()
-            color_index += 1
-            turtle.pu()
-            turtle.forward(rect.width + padding)
-            turtle.left(90)
-            turtle.forward(rect.y)
-            turtle.right(90)
+        import turtle
+        import time
+        from random import randrange
 
-        for square in list_squares:
-            potential_width = row_width + square.size + square.x + padding
-            if (row_width == padding or potential_width < screen_width):
-                row_width += square.size + square.x + padding
-                if (row_height < square.size):
-                    row_height = square.size + square.y
-            else:
-                turtle.pu()
-                turtle.left(180)
-                turtle.forward(row_width - padding)
-                turtle.left(90)
-                turtle.forward(row_height + padding)
-                turtle.left(90)
-                row_width = square.size + square.x + padding * 2
-                row_height = square.size + square.y
-            turtle.pd()
-            turtle.pencolor(color_list[color_index % color_size])
-            for _ in range(4):
-                turtle.forward(5)
-                turtle.back(5)
-                turtle.right(90)
-            turtle.pu()
-            turtle.forward(square.x)
-            turtle.right(90)
-            turtle.forward(square.y)
-            turtle.left(90)
-            turtle.pd()
-            turtle.pencolor('black')
-            turtle.fillcolor(color_list[color_index % color_size])
-            turtle.begin_fill()
-            for _ in range(4):
-                turtle.forward(square.size)
-                turtle.right(90)
-            turtle.end_fill()
-            color_index += 1
-            turtle.pu()
-            turtle.forward(square.size + padding)
-            turtle.left(90)
-            turtle.forward(square.y)
-            turtle.right(90)
+        t = turtle.Turtle()
+        t.color("beige")
+        turtle.bgcolor("violet")
+        t.shape("square")
+        t.pensize(8)
 
-        turtle.getscreen()._root.mainloop()
+        for i in (list_rectangles + list_squares):
+            t.penup()
+            t.setpos(0, 0)
+            turtle.Screen().colormode(255)
+            t.pencolor((randrange(255), randrange(255), randrange(255)))
+            Base.draw_rect(t, i)
+            time.sleep(1)
+        time.sleep(5)
+
+    @staticmethod
+    def draw_rect(t, rect):
+        """Helper method that draws a Rectangle
+        or Square.
+        """
+
+        t.penup()
+        t.setpos(rect.x, rect.y)
+        t.pendown()
+        t.forward(rect.width)
+        t.left(90)
+        t.forward(rect.height)
+        t.left(90)
+        t.forward(rect.width)
+        t.left(90)
+        t.forward(rect.height)
