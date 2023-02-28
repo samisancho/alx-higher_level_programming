@@ -1,12 +1,17 @@
 #!/usr/bin/python3
+"""
+    A script that fetches https://intranet.htbn.io/status
+"""
+
+
 import urllib.request
 
-if __name__ == "__main__":
-    with urllib.request.urlopen('https://intranet.hbtn.io/status') as response:
-        content = response.read()
 
-    deco = ["utf8 content", content.decode()]
-    headers = [["type", type(content)], ["content", content], deco]
-    print("Body response:")
-    for el in headers:
-        print("\t- {}: {}".format(el[0], el[1]))
+if __name__ == "__main__":
+    with urllib.request.urlopen('https://intranet.hbtn.io/status') as resp:
+        html = resp.read()
+
+        print("Body response:")
+        print("\t- type: {}".format(type(html)))
+        print("\t- content: {}".format(html))
+        print("\t- utf8 content: {}".format(html.decode('utf8')))
